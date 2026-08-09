@@ -1,62 +1,26 @@
-name: Build Docker image and deply app to VPS
+name: Build, push & deploy docker image
 
+# Thin caller — the actual pipeline lives in the central gitops repo.
+# Per-project values are passed as `with:`; shared credentials come from
+# ORG-level secrets via `secrets: inherit` (nothing secret is set in this repo).
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      build:
+        description: 'Build and push the image'
+        type: boolean
+        default: true
+      deploy:
+        description: 'Deploy image tag Kubernetes cluster gitOps repo'
+        type: boolean
+        default: true
 
 jobs:
-  build_and_deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Prepare some variables
-        id: vars
-        run: echo "::set-output name=timestamp::$(date +%Y-%m-%d_%H-%M)"
-
-      - name: Setup SSH
-        uses: MrSquaare/ssh-setup-action@v3
-        with:
-          host: github.com
-          private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          private-key-name: github
-
-      - name: Checkout repository with current source code
-        uses: actions/checkout@v4
-
-      - name: Clone repository with dockerfiles
-        run: git clone git@github.com:K0V0/kovostack-dockerfiles.git
-
-      - name: Copy project related dockerfiles into temp directory
-        run: cp -rf ./kovostack-dockerfiles/paster-cloud/frontend/. ./temp/
-
-      - name: Copy app source into temp directory
-        run: cp -rf ./PasterFrontend/. ./temp/
-
-      - name: Build Docker image
-        run: |
-          cd temp
-          docker build -t k0v0/kovo-docker-repo .
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Push Docker image to Docker Hub
-        run: |
-          docker tag k0v0/kovo-docker-repo k0v0/kovo-docker-repo:paster-cloud-frontend-${{ steps.vars.outputs.timestamp }}
-          docker push k0v0/kovo-docker-repo:paster-cloud-frontend-${{ steps.vars.outputs.timestamp }}
-
-      #- name: Notify target environment
-      #  run: |
-      #    # Use webhook or SSH to notify target environment to pull new Docker image
-      #    # Example with webhook:
-      #    curl -X POST -d '{"image": "your_dockerhub_username/your_repository_name:latest"}' https://your.webhook.endpoint
-
-      - name: Clean up
-        run: |
-          rm -rf ./temp
-          rm -rf ./kovostack-dockerfiles
-
+  pipeline:
+    uses: Kovospace/kovostack-github-workflows/.github/workflows/build-deploy.yml@2.0.1
+    with:
+      image_name: paster-frontend
+      app_namespace: paster-frontend
+      build: ${{ inputs.build }}
+      deploy: ${{ inputs.deploy }}
+    secrets: inherit
