@@ -17,7 +17,7 @@ on:
 
 jobs:
   pipeline:
-    uses: Kovospace/kovostack-github-workflows/.github/workflows/build-deploy.yml@2.0.1
+    uses: Kovospace/kovostack-github-workflows/.github/workflows/build-deploy.yml@2.0.2
     with:
       image_name: paster-frontend
       app_namespace: paster-frontend
